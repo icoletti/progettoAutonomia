@@ -7,9 +7,13 @@ Architettura del Gioco dell’Impiccato con Elezione del Master (Random)
 Schema generale:
 
 Client1 ———— TCP ———— Server ———— TCP ———— Client2
+
                ↑                      ↑
+               
               UDP                    UDP
+              
                ↓                      ↓
+               
            Elezione Master casuale (UDP Broadcast)
 
 
