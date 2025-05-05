@@ -25,8 +25,8 @@ class MTClientHandler(threading.Thread):
                 #di lettura della lettera che i client proveranno ad indovinare
                 letter = data.decode("utf-8")
 
-                #manca  read 
-                ...
+                self.read(letter.strip().lower())  # Elabora la lettera
+
         except Exception as ex:
             #ae c'è un errore durante la comunicazione con il client, stampalo
             print(f"Errore con il client {self.__clientAddress}: {e}")
