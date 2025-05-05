@@ -2,6 +2,7 @@ import socket
 import threading 
 import random
 import time
+from clienthandler import MTClientHandler
 
 #creiamo la classe server
 class Server:
@@ -34,4 +35,19 @@ class Server:
                 #i client l'esistenza del mio server
                 broadcastingUDP_Thread = threading.Thread(target=self.__BroadcastingUDP, args=())
                 broadcastingUDP_Thread.start() 
+                #manca parte di volantinaggio udp(video prof ) 
+
+    # Metodo per inviare periodicamente messaggi broadcast UDP
+    def __BroadcastingUDP(self):
+        __UDPsocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        __UDPsocket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        message = f"SERVER_AVAILABLE:{self.__TCPport}"
+        
+        while True:
+            try:
+                __UDPsocket.sendto(message.encode(), ('255.255.255.255', self.__UDPport))
+                time.sleep(5)  # ogni 5 secondi
+            except Exception as e:
+                print(f"Errore nel volantinaggio UDP: {e}")
+                break
                 #manca parte di volantinaggio udp(video prof ) 
