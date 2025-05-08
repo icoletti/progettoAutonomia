@@ -1,74 +1,103 @@
 import socket
 import threading
 
+# Classe per gestire la comunicazione con un singolo client in un thread separato
 class MTClientHandler(threading.Thread):
-    def __init__(self, clientSocket, clientAddress, clientsDict, lock):
+    # Costruttore della classe MTClientHandler
+    def __init__(self, clientSocket, clientAddress, server_instance, lock):
+        # Chiamiamo il costruttore della classe padre (threading.Thread)
         threading.Thread.__init__(self)
+        # Socket specifico per la comunicazione con questo client
         self.__clientSocket = clientSocket
+        # Indirizzo (IP e porta) del client connesso
         self.__clientAddress = clientAddress
-        self.__clientsDict = clientsDict
-        self.__lock = lock # Lock per sincronizzare l'accesso ai dati condivisi
-        #inizializza i dati del gioco per il client
-        self.game_data = {"word": "", "errors": 0, "guessed_word": "", "turn": 1}
+        # Riferimento all'istanza del server per poter interagire con la logica globale del gioco
+        self.__server = server_instance
+        # Lock per sincronizzare l'accesso a risorse condivise (anche se qui principalmente usato nel server)
+        self.__lock = lock
+        # Dizionario per memorizzare i dati specifici del gioco per questo client
+        self.game_data = {"word": "", "errors": 0, "guessed_word": "", "attempts": []}
 
-    #eseguiamo il thread per gestire le richieste del client
+    # Metodo eseguito quando il thread viene avviato
     def run(self):
         try:
-            #ciclo infinito per gestire le richieste del client
+            # Notifichiamo a tutti gli altri client che un nuovo giocatore si è connesso
+            self.__server.broadcast_message(f"Nuovo giocatore connesso: {self.__clientAddress}", exclude=self.__clientAddress)
+            # Al primo client che si connette, chiediamo al server di selezionare un giocatore per scegliere la parola
+            # (questa logica potrebbe essere raffinata per gestire meglio l'inizio del gioco con più client)
+            if not self.__server.__game_started and len(self.__server.__clients) == 1:
+                self.__server.select_random_chooser()
+
+            # Ciclo infinito per ricevere dati dal client
             while True:
-                #riceviamo i dati dal client (in lettura)
+                # Riceviamo fino a 1500 byte di dati dal client
                 data = self.__clientSocket.recv(1500)
-                #se il client ha chiuso la connessione/il server non riceve i dati esco dal ciclo
+                # Se non riceviamo dati, significa che il client si è disconnesso o ha chiuso la connessione
                 if not data:
                     break
-                #facciamo la decodifica dei dati ricevuti e avvio il processo 
-                #di lettura della lettera che i client proveranno ad indovinare
-                letter = data.decode("utf-8")
+                # Decodifichiamo i dati ricevuti da bytes a stringa, rimuovendo eventuali spazi bianchi all'inizio e alla fine
+                message = data.decode("utf-8").strip()
+                print(f"Ricevuto da {self.__clientAddress}: {message}")
 
-                self.read(letter.strip().lower())  # Elabora la lettera
+                # Gestiamo i messaggi ricevuti dal client
+                if message.startswith("PAROLA:"):
+                    # Se il messaggio inizia con "PAROLA:", estraiamo la parola proposta
+                    word = message[len("PAROLA:"):].strip()
+                    # Chiamiamo il metodo del server per impostare la parola da indovinare, verificando se il client è il chooser
+                    if self.__server.set_word_to_guess(word, self.__clientAddress):
+                        # Se la parola è stata accettata, inviamo una conferma al client
+                        self.send_message("PAROLA_ACCETTATA")
+                    else:
+                        # Altrimenti, inviamo un messaggio di errore
+                        self.send_message("ERRORE: NON SEI IL GIOCATORE CHE SCEGLIE O IL GIOCO È GIA' INIZIATO")
+                # Se il messaggio è di una singola lettera e il gioco è iniziato e il client non è il chooser
+                elif len(message) == 1 and self.__server.__game_started and self.__clientAddress != self.__server.__chooser_address:
+                    # Convertiamo la lettera in minuscolo
+                    letter = message.lower()
+                    # Verifichiamo se questa lettera è già stata tentata
+                    if letter not in self.game_data["attempts"]:
+                        # Chiamiamo il metodo del server per gestire il tentativo di indovinare la lettera
+                        self.__server.guess_letter(letter, self.__clientAddress)
+                        # Aggiungiamo la lettera ai tentativi effettuati
+                        self.game_data["attempts"].append(letter)
+                    else:
+                        # Se la lettera è già stata provata, informiamo il client
+                        self.send_message("HAI GIA' PROVATO QUESTA LETTERA")
+                # Se il client invia un comando per richiedere lo stato attuale del gioco
+                elif message == "RICHIESTA_STATO":
+                    # Invia lo stato attuale del gioco al client
+                    self.send_status_game()
+                else:
+                    # Se il comando non è riconosciuto, inviamo un messaggio di errore
+                    self.send_message("COMANDO NON RICONOSCIUTO")
 
-        except Exception as ex:
-            #ae c'è un errore durante la comunicazione con il client, stampalo
-            print(f"Errore con il client {self.__clientAddress}: {e}")
+        except Exception as e:
+            # Se si verifica un errore durante la comunicazione con il client, lo stampiamo
+            print(f"Errore nella gestione del client {self.__clientAddress}: {e}")
         finally:
-            #chiudi la connessione del client al termine
+            # Quando il ciclo while termina (il client si disconnette), rimuoviamo il client dal server
+            self.__server.remove_client(self.__clientAddress)
+            # Chiudiamo la connessione con il client
             self.__clientSocket.close()
 
-    def read(self, letter):
-         #se la lettera è corretta, aggiorna la parola indovinata
+    # Metodo per processare un tentativo di indovinare una lettera
+    def process_guess(self, letter):
+        # Se la lettera è presente nella parola da indovinare
         if letter in self.game_data["word"]:
-            self.game_data["guessed_word"] = self.updateWord(letter)
-            self.notify("Giusta")  #notifica che la lettera è giusta
+            # Aggiorniamo la parola indovinata mostrando la lettera corretta
+            self.update_guessed_word(letter)
+            # Notifichiamo al client che la lettera è giusta
+            self.send_message("GIUSTO")
+            # Verifichiamo se la parola è stata completamente indovinata
+            if self.game_data["guessed_word"] == self.game_data["word"]:
+                # Notifichiamo a tutti che il giocatore ha indovinato la parola
+                self.__server.broadcast_message(f"IL GIOCATORE {self.__clientAddress} HA INDOVINATO LA PAROLA: {self.game_data['word']}")
+                # Resettiamo lo stato del gioco sul server
+                self.__server.__game_started = False
+                # Selezioniamo un nuovo giocatore per scegliere la parola
+                self.__server.select_random_chooser()
         else:
-            #se la lettera è sbagliata, incrementa gli errori
+            # Se la lettera non è nella parola, incrementiamo il contatore degli errori
             self.game_data["errors"] += 1
-            self.notify("Sbagliata")  #notifica che la lettera è sbagliata
-            if self.game_data["errors"] >= 6:
-                self.notify("Hai Perso!")  #se il numero di errori raggiunge 6, il client ha perso
-                self.game_data["guessed_word"] = self.game_data["word"]  # Riveliamo la parola
-        #invia lo stato attuale del gioco al client
-        self.sendStatusGame()
-
-      # Aggiorna la parola indovinata con le lettere corrette
-    def updateWord(self, letter):
-        guessed = list(self.game_data["guessed_word"])  # Converte la parola indovinata in lista
-        for i, char in enumerate(self.game_data["word"]):
-            if char == letter:
-                guessed[i] = letter  # Sostituisce la lettera indovinata nella posizione corretta
-        return "".join(guessed)  # Ritorna la parola aggiornata come stringa
-
-    # Invia una notifica al client tramite UDP
-    def notify(self, status):
-        message = f"Notifica: {status}"  # Crea il messaggio di notifica
-        self.sendUDP(message)  # Invia la notifica tramite UDP
-
-    # Invia il messaggio UDP al client
-    def sendUDP(self, message):
-        udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # Crea un socket UDP
-        udp_socket.sendto(message.encode(), self.__clientAddress)  # Invia il messaggio al client
-
-    # Invia lo stato attuale del gioco al client via TCP
-    def sendStatusGame(self):
-        message = f"Parola attuale: {self.game_data['guessed_word']} - Errori: {self.game_data['errors']}"
-        self.__clientSocket.send(message.encode())  # Invia il messaggio al client
-
+            # Notifichiamo al client che la lettera è sbagliata
+            self.
