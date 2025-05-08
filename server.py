@@ -181,12 +181,3 @@ class Server:
                 # Se il chooser si disconnette prima di scegliere la parola e ci sono altri client
                 elif not self.__game_started and self.__clients:
                     self.select_random_chooser() # Seleziona un nuovo chooser
-
-# Blocco principale per avviare il server se lo script viene eseguito direttamente
-if __name__ == "__main__":
-    TCP_PORT = 5000
-    UDP_PORT = 5001
-    # Creiamo un'istanza della classe Server
-    server = Server(TCP_PORT, UDP_PORT)
-    # Avviamo il server
-    server.Start()
