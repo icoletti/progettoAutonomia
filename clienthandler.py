@@ -149,4 +149,4 @@ class MTClientHandler(threading.Thread):
         # Creiamo un messaggio contenente la parola indovinata parzialmente e il numero di errori
         status = f"Parola attuale: {self.game_data['guessed_word']}, Errori: {self.game_data['errors']}"
         # Inviamo il messaggio di stato al client
-        self.send_message(status)
+        self.send_message(status) 
