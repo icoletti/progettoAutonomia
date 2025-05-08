@@ -84,6 +84,16 @@ class Client:
                 elif message.startswith("Notifica:"):
                     # Stampa le notifiche dal server (es. "Giusta", "Sbagliata", "Hai Perso!")
                     print(message)
+                elif message == "HAI_VINTO":
+                    # Stampa un messaggio di vittoria
+                    print("Hai indovinato la parola! Congratulazioni!")
+                elif message.startswith("LA_PAROLA_ERA:"):
+                    # Stampa la parola corretta quando si perde o la partita termina
+                    correct_word = message[len("LA_PAROLA_ERA:"):]
+                    print(f"La parola era: {correct_word}")
+                elif message == "HAI_PERSO":
+                    # Stampa un messaggio di sconfitta
+                    print("Hai esaurito i tentativi! Hai perso.")
             except Exception as e:
                 print(f"Errore nella ricezione TCP: {e}")
                 break
@@ -123,29 +133,3 @@ class Client:
     def close_connection(self):
         self.client_socket_tcp.close()
         self.udp_socket.close()
-
-if __name__ == "__main__":
-    SERVER_IP = "127.0.0.1"  # Cambia con l'IP del server se necessario
-    TCP_PORT = 5000
-    UDP_PORT = 5001
-    client = Client(SERVER_IP, TCP_PORT, UDP_PORT)
-    client.connect()
-
-    while True:
-        try:
-            if not client.is_chooser:
-                guess = input("Inserisci una lettera da indovinare (o 'stato' per vedere lo stato): ").lower()
-                if guess == 'stato':
-                    client.send_message_tcp("RICHIESTA_STATO")
-                elif len(guess) == 1 and guess.isalpha():
-                    client.send_guess(guess)
-                else:
-                    print("Inserisci una singola lettera valida.")
-            else:
-                # Il chooser ha già inserito la parola, non fa altro qui
-                pass
-            time.sleep(0.1)
-        except KeyboardInterrupt:
-            print("\nDisconnessione...")
-            client.close_connection()
-            break
