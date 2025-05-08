@@ -96,8 +96,57 @@ class MTClientHandler(threading.Thread):
                 self.__server.__game_started = False
                 # Selezioniamo un nuovo giocatore per scegliere la parola
                 self.__server.select_random_chooser()
+                # Invia un messaggio speciale al client che ha indovinato
+                self.send_message("HAI_VINTO")
+                # Invia un messaggio agli altri client che la partita è finita
+                self.__server.broadcast_message(f"Partita terminata. La parola era: {self.game_data['word']}", exclude=self.__clientAddress)
         else:
             # Se la lettera non è nella parola, incrementiamo il contatore degli errori
             self.game_data["errors"] += 1
             # Notifichiamo al client che la lettera è sbagliata
-            self.
+            self.send_message("SBAGLIATO")
+            # Verifichiamo se il numero di errori ha raggiunto il limite (ad esempio, 6 errori)
+            if self.game_data["errors"] >= 6:
+                # Notifichiamo al client che ha perso
+                self.send_message("HAI_PERSO")
+                # Notifichiamo a tutti la parola corretta
+                self.__server.broadcast_message(f"Il giocatore {self.__clientAddress} ha perso. La parola era: {self.game_data['word']}", exclude=self.__clientAddress)
+                # Resettiamo lo stato del gioco sul server
+                self.__server.__game_started = False
+                # Selezioniamo un nuovo giocatore per scegliere la parola
+                self.__server.select_random_chooser()
+                # Invia un messaggio speciale al client che ha perso
+                self.send_message(f"LA_PAROLA_ERA:{self.game_data['word']}")
+                # Invia un messaggio agli altri client che la partita è finita
+                self.__server.broadcast_message(f"Partita terminata. La parola era: {self.game_data['word']}", exclude=self.__clientAddress)
+        # Dopo ogni tentativo (corretto o sbagliato), inviamo lo stato attuale del gioco al client
+        self.send_status_game()
+
+    # Metodo per aggiornare la parola indovinata con la lettera corretta
+    def update_guessed_word(self, letter):
+        # Convertiamo la parola da indovinare e la parola indovinata in liste per una facile manipolazione
+        word_list = list(self.game_data["word"])
+        guessed_word_list = list(self.game_data["guessed_word"])
+        # Iteriamo su ogni lettera della parola da indovinare
+        for i in range(len(word_list)):
+            # Se la lettera corrente corrisponde alla lettera indovinata
+            if word_list[i] == letter:
+                # Aggiorniamo la lettera nella parola indovinata
+                guessed_word_list[i] = letter
+        # Riconvertiamo la lista della parola indovinata in una stringa
+        self.game_data["guessed_word"] = "".join(guessed_word_list)
+
+    # Metodo per inviare un messaggio al client
+    def send_message(self, message):
+        try:
+            # Codifichiamo il messaggio in bytes (UTF-8) e lo inviamo al client
+            self.__clientSocket.send(message.encode("utf-8"))
+        except Exception as e:
+            print(f"Errore nell'invio al client {self.__clientAddress}: {e}")
+
+    # Metodo per inviare lo stato attuale del gioco al client
+    def send_status_game(self):
+        # Creiamo un messaggio contenente la parola indovinata parzialmente e il numero di errori
+        status = f"Parola attuale: {self.game_data['guessed_word']}, Errori: {self.game_data['errors']}"
+        # Inviamo il messaggio di stato al client
+        self.send_message(status)
