@@ -25,7 +25,7 @@ class MTClientHandler(threading.Thread):
             self.__server.broadcast_message(f"Nuovo giocatore connesso: {self.__clientAddress}", exclude=self.__clientAddress)
             # Al primo client che si connette, chiediamo al server di selezionare un giocatore per scegliere la parola
             # (questa logica potrebbe essere raffinata per gestire meglio l'inizio del gioco con più client)
-            if not self.__server.__game_started and len(self.__server.__clients) == 1:
+            if not self.__server.is_game_started() and len(self.__server.get_clients()) == 1:
                 self.__server.select_random_chooser()
 
             # Ciclo infinito per ricevere dati dal client
@@ -51,7 +51,7 @@ class MTClientHandler(threading.Thread):
                         # Altrimenti, inviamo un messaggio di errore
                         self.send_message("ERRORE: NON SEI IL GIOCATORE CHE SCEGLIE O IL GIOCO È GIA' INIZIATO")
                 # Se il messaggio è di una singola lettera e il gioco è iniziato e il client non è il chooser
-                elif len(message) == 1 and self.__server.__game_started and self.__clientAddress != self.__server.__chooser_address:
+                elif len(message) == 1 and self.__server.is_game_started() and self.__clientAddress != self.__server.__chooser_address:
                     # Convertiamo la lettera in minuscolo
                     letter = message.lower()
                     # Verifichiamo se questa lettera è già stata tentata
@@ -93,7 +93,7 @@ class MTClientHandler(threading.Thread):
                 # Notifichiamo a tutti che il giocatore ha indovinato la parola
                 self.__server.broadcast_message(f"IL GIOCATORE {self.__clientAddress} HA INDOVINATO LA PAROLA: {self.game_data['word']}")
                 # Resettiamo lo stato del gioco sul server
-                self.__server.__game_started = False
+                self.__server.__game_started = False # Modificato per usare l'attributo corretto
                 # Selezioniamo un nuovo giocatore per scegliere la parola
                 self.__server.select_random_chooser()
                 # Invia un messaggio speciale al client che ha indovinato
@@ -112,7 +112,7 @@ class MTClientHandler(threading.Thread):
                 # Notifichiamo a tutti la parola corretta
                 self.__server.broadcast_message(f"Il giocatore {self.__clientAddress} ha perso. La parola era: {self.game_data['word']}", exclude=self.__clientAddress)
                 # Resettiamo lo stato del gioco sul server
-                self.__server.__game_started = False
+                self.__server.__game_started = False # Modificato per usare l'attributo corretto
                 # Selezioniamo un nuovo giocatore per scegliere la parola
                 self.__server.select_random_chooser()
                 # Invia un messaggio speciale al client che ha perso
@@ -149,4 +149,4 @@ class MTClientHandler(threading.Thread):
         # Creiamo un messaggio contenente la parola indovinata parzialmente e il numero di errori
         status = f"Parola attuale: {self.game_data['guessed_word']}, Errori: {self.game_data['errors']}"
         # Inviamo il messaggio di stato al client
-        self.send_message(status) 
+        self.send_message(status)
