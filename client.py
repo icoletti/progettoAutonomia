@@ -72,4 +72,80 @@ class Client:
                     self.send_message_tcp(f"PAROLA:{word}")
                     # Resetta il flag di chooser dopo aver inviato la parola
                     self.is_chooser = False
-                elif message == "ATTESA
+                elif message == "ATTESA_SCELTA_PAROLA":
+                    # Se il server comunica che si è in attesa della scelta della parola da parte di un altro giocatore
+                    print("In attesa che il giocatore scelga la parola...")
+                elif message == "INIZIO_GIOCO":
+                    # Se il server comunica che il gioco è iniziato
+                    print("Il gioco è iniziato! Indovina le lettere.")
+                elif message.startswith("Parola attuale:"):
+                    # Stampa lo stato attuale della parola indovinata
+                    print(message)
+                elif message.startswith("Notifica:"):
+                    # Stampa le notifiche dal server (es. "Giusta", "Sbagliata", "Hai Perso!")
+                    print(message)
+            except Exception as e:
+                print(f"Errore nella ricezione TCP: {e}")
+                break
+
+    # Metodo per avviare un thread dedicato alla ricezione di notifiche UDP dal server
+    def receive_notifications_udp(self):
+        # Crea un nuovo thread per la ricezione UDP
+        thread = threading.Thread(target=self._receive_udp)
+        # Imposta il thread come demone
+        thread.daemon = True
+        # Avvia il thread UDP
+        thread.start()
+
+    # Metodo eseguito nel thread per ricevere continuamente notifiche UDP dal server
+    def _receive_udp(self):
+        self.udp_socket.bind(('', self.server_UDPport))
+        while True:
+            try:
+                # Riceve fino a 1024 byte di dati UDP. La recvfrom() restituisce sia i dati che l'indirizzo del mittente.
+                data, addr = self.udp_socket.recvfrom(1024)
+                # Decodifica i dati ricevuti e li stampa, insieme all'indirizzo del server da cui provengono.
+                print(f"Notifica UDP dal server ({addr}): {data.decode()}")
+            except Exception as e:
+                print(f"Errore nella ricezione UDP: {e}")
+                break
+
+    # Metodo per inviare un tentativo di indovinare una lettera al server
+    def send_guess(self, letter):
+        # Verifica che questo client non sia il giocatore che ha scelto la parola (non può indovinare)
+        if not self.is_chooser:
+            # Invia la lettera al server tramite la connessione TCP
+            self.send_message_tcp(letter)
+        else:
+            print("Sei il giocatore che ha scelto la parola, non puoi indovinare.")
+
+    # Metodo per chiudere la connessione TCP e il socket UDP con il server
+    def close_connection(self):
+        self.client_socket_tcp.close()
+        self.udp_socket.close()
+
+if __name__ == "__main__":
+    SERVER_IP = "127.0.0.1"  # Cambia con l'IP del server se necessario
+    TCP_PORT = 5000
+    UDP_PORT = 5001
+    client = Client(SERVER_IP, TCP_PORT, UDP_PORT)
+    client.connect()
+
+    while True:
+        try:
+            if not client.is_chooser:
+                guess = input("Inserisci una lettera da indovinare (o 'stato' per vedere lo stato): ").lower()
+                if guess == 'stato':
+                    client.send_message_tcp("RICHIESTA_STATO")
+                elif len(guess) == 1 and guess.isalpha():
+                    client.send_guess(guess)
+                else:
+                    print("Inserisci una singola lettera valida.")
+            else:
+                # Il chooser ha già inserito la parola, non fa altro qui
+                pass
+            time.sleep(0.1)
+        except KeyboardInterrupt:
+            print("\nDisconnessione...")
+            client.close_connection()
+            break
