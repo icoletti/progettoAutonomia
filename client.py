@@ -63,6 +63,7 @@ class Client:
                 message = data.decode()
                 print(f"Ricevuto dal server TCP: {message}")
                 # Gestisce i messaggi specifici ricevuti dal server
+                # rischioso  perchè la codifica la fa sul testo e non su una codifica IMPORTANTE MI HA DETTO IL PROF CHE è UNA FOLLIA  
                 if message == "SEI IL GIOCATORE CHE SCEGLIE LA PAROLA":
                     # Se il server comunica che questo client deve scegliere la parola, imposta il flag
                     self.is_chooser = True
