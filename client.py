@@ -63,19 +63,21 @@ class Client:
                 message = data.decode()
                 print(f"Ricevuto dal server TCP: {message}")
                 # Gestisce i messaggi specifici ricevuti dal server
-                if message == "SEI_IL_GIOCATORE_CHE_SCEGLIE_LA_PAROLA":
+                if message == "SEI IL GIOCATORE CHE SCEGLIE LA PAROLA":
                     # Se il server comunica che questo client deve scegliere la parola, imposta il flag
                     self.is_chooser = True
                     # Richiede all'utente di inserire la parola
                     word = input("Inserisci la parola da indovinare: ")
                     # Invia la parola al server con il prefisso "PAROLA:"
+                    print("tutto ok ")
                     self.send_message_tcp(f"PAROLA:{word}")
                     # Resetta il flag di chooser dopo aver inviato la parola
                     self.is_chooser = False
-                elif message == "ATTESA_SCELTA_PAROLA":
+                    print("tutto bho ")
+                elif message == "ATTESA SCELTA PAROLA":
                     # Se il server comunica che si è in attesa della scelta della parola da parte di un altro giocatore
                     print("In attesa che il giocatore scelga la parola...")
-                elif message == "INIZIO_GIOCO":
+                elif message == "INIZIO GIOCO":
                     # Se il server comunica che il gioco è iniziato
                     print("Il gioco è iniziato! Indovina le lettere.")
                 elif message.startswith("Parola attuale:"):
@@ -84,14 +86,14 @@ class Client:
                 elif message.startswith("Notifica:"):
                     # Stampa le notifiche dal server (es. "Giusta", "Sbagliata", "Hai Perso!")
                     print(message)
-                elif message == "HAI_VINTO":
+                elif message == "HAI VINTO":
                     # Stampa un messaggio di vittoria
                     print("Hai indovinato la parola! Congratulazioni!")
-                elif message.startswith("LA_PAROLA_ERA:"):
+                elif message.startswith("LA PAROLA ERA:"):
                     # Stampa la parola corretta quando si perde o la partita termina
-                    correct_word = message[len("LA_PAROLA_ERA:"):]
+                    correct_word = message[len("LA PAROLA ERA:"):]
                     print(f"La parola era: {correct_word}")
-                elif message == "HAI_PERSO":
+                elif message == "HAI PERSO":
                     # Stampa un messaggio di sconfitta
                     print("Hai esaurito i tentativi! Hai perso.")
             except Exception as e:
