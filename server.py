@@ -101,7 +101,7 @@ class Server:
                 self.__game_started = True
                 print(f"Parola da indovinare impostata da {address}: {self.__word_to_guess}")
                 # Invia un messaggio a tutti gli altri client che il gioco è iniziato
-                self.broadcast_message("INIZIO_GIOCO", exclude=address)
+                self.broadcast_message("INIZIO GIOCO", exclude=address)
                 # Inizializza lo stato del gioco per ogni client
                 for addr, handler in self.__clients.items():
                     if handler:
@@ -141,9 +141,9 @@ class Server:
                 chooser_handler = self.__clients.get(self.__chooser_address)
                 if chooser_handler:
                     # Invia un messaggio speciale al client designato per scegliere la parola
-                    chooser_handler.send_message("SEI_IL_GIOCATORE_CHE_SCEGLIE_LA_PAROLA")
+                    chooser_handler.send_message("SEI IL GIOCATORE CHE SCEGLIE LA PAROLA")
                 # Invia un messaggio a tutti gli altri client che sono in attesa della scelta della parola
-                self.broadcast_message("ATTESA_SCELTA_PAROLA", exclude=self.__chooser_address)
+                self.broadcast_message("ATTESA SCELTA PAROLA", exclude=self.__chooser_address)
             else:
                 print("Nessun client connesso per scegliere la parola.")
 
